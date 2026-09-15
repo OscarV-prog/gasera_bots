@@ -6,7 +6,7 @@ from src.repositories.sqlite_repo import SqliteRepository
 from src.repositories.api_repo import ApiRepository
 
 _sqlite_repo = SqliteRepository()
-_api_repo = ApiRepository(fallback_repo=None)
+_api_repo = ApiRepository(fallback_repo=_sqlite_repo)
 
 
 def get_repository() -> ApiRepository | SqliteRepository:
