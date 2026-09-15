@@ -28,12 +28,30 @@ def cancel_order(
     """
     configurable = config.get("configurable", {}) if config else {}
     tenant_id = configurable.get("tenant_id", "petroil")
+    channel = configurable.get("channel", "telegram")
+    channel_user_id = str(configurable.get("channel_user_id", ""))
 
     repo = get_repository()
     order = repo.get_order_by_id(tenant_id, order_id)
 
     if not order:
         return f"No se encontró ningún pedido con el folio #{order_id}."
+
+    # Control de Autorización y Privacidad (BOLA/IDOR):
+    # Verificar que el pedido pertenezca al usuario del canal en sesión activa
+    if channel and channel_user_id and channel_user_id not in ("admin_manual", "dashboard", "cli_user"):
+        import re
+        bound_customer = repo.get_customer(tenant_id, channel, channel_user_id)
+        clean_bound = re.sub(r"\D", "", bound_customer.phone) if (bound_customer and bound_customer.phone) else ""
+        if not clean_bound and len(re.sub(r"\D", "", channel_user_id)) >= 10:
+            clean_bound = re.sub(r"\D", "", channel_user_id)[-10:]
+
+        clean_order_phone = re.sub(r"\D", "", order.customer_phone or "")
+        if clean_order_phone and clean_bound and clean_order_phone[-10:] != clean_bound[-10:]:
+            return (
+                f"⛔ ACCESO DENEGADO: Por políticas de seguridad y privacidad, no puedes cancelar pedidos "
+                f"que no pertenezcan a tu número telefónico registrado."
+            )
 
     if order.status == "delivered":
         return f"El pedido #{order_id} ya fue entregado y no puede ser cancelado."

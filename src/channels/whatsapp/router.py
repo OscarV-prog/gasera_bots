@@ -99,12 +99,62 @@ async def verify_webhook(request: Request):
     raise HTTPException(status_code=403, detail="Verification token mismatch")
 
 
+import hashlib
+import hmac
+import json
+import time
+
+# Cache de idempotencia para deduplicar mensajes de WhatsApp (msg_id -> timestamp)
+_PROCESSED_MSG_IDS: dict[str, float] = {}
+_IDEMPOTENCY_TTL_SECONDS = 600.0  # 10 minutos
+
+
+def _is_duplicate_message(msg_id: str) -> bool:
+    """Verifica si el mensaje ya fue recibido y procesado recientemente."""
+    if not msg_id:
+        return False
+    now = time.time()
+    # Limpieza periódica de mensajes antiguos
+    if len(_PROCESSED_MSG_IDS) > 2000:
+        expired_keys = [k for k, ts in _PROCESSED_MSG_IDS.items() if now - ts > _IDEMPOTENCY_TTL_SECONDS]
+        for k in expired_keys:
+            _PROCESSED_MSG_IDS.pop(k, None)
+
+    if msg_id in _PROCESSED_MSG_IDS and (now - _PROCESSED_MSG_IDS[msg_id]) < _IDEMPOTENCY_TTL_SECONDS:
+        return True
+
+    _PROCESSED_MSG_IDS[msg_id] = now
+    return False
+
+
+def verify_whatsapp_signature(body_bytes: bytes, signature_header: str | None, app_secret: str) -> bool:
+    """Valida la firma HMAC-SHA256 (X-Hub-Signature-256) enviada por Meta."""
+    if not app_secret:
+        return True  # Si no está configurado el secreto en local, se permite el paso
+    if not signature_header or not signature_header.startswith("sha256="):
+        return False
+
+    received_hash = signature_header[len("sha256="):]
+    expected_hash = hmac.new(app_secret.encode("utf-8"), body_bytes, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(received_hash, expected_hash)
+
+
 @router.post("")
 @router.post("/")
 async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
     """Receive real-time incoming messages and events from WhatsApp Cloud API."""
+    settings = get_settings()
+    body_bytes = await request.body()
+
+    # 1. Validación Criptográfica de Firma HMAC-SHA256 (Meta X-Hub-Signature-256)
+    if settings.whatsapp_app_secret:
+        sig_header = request.headers.get("X-Hub-Signature-256")
+        if not verify_whatsapp_signature(body_bytes, sig_header, settings.whatsapp_app_secret):
+            logger.warning("[WhatsApp Webhook] Firma X-Hub-Signature-256 INVÁLIDA. Petición rechazada.")
+            raise HTTPException(status_code=401, detail="Invalid WhatsApp webhook signature")
+
     try:
-        payload = await request.json()
+        payload = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
     except Exception:
         return {"status": "error", "detail": "Invalid JSON"}
 
@@ -112,10 +162,18 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
     if not events:
         return {"status": "ok", "message": "No actionable user events"}
 
+    queued_count = 0
     for ev in events:
+        msg_id = ev.get("msg_id", "")
+        # 2. Control de Idempotencia contra reintentos de Meta
+        if msg_id and _is_duplicate_message(msg_id):
+            logger.info(f"[WhatsApp Webhook] Mensaje duplicado omitido por idempotencia: {msg_id}")
+            continue
         background_tasks.add_task(process_whatsapp_event, ev)
+        queued_count += 1
 
-    return {"status": "ok", "events_queued": len(events)}
+    return {"status": "ok", "events_queued": queued_count}
+
 
 
 async def process_whatsapp_event(event: dict[str, Any]) -> None:

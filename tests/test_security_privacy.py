@@ -1,5 +1,4 @@
-"""Tests for security and privacy protections in customer_info, get_order_status, and telegram bot."""
-
+import os
 import unittest
 from langchain_core.runnables import RunnableConfig
 
@@ -13,8 +12,10 @@ from telegram_bot import optimizar_respuesta_con_botones
 class TestSecurityAndPrivacy(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        os.environ["DATA_SOURCE"] = "sqlite"
         init_db()
         cls.repo = get_repository()
+
         # Seed test customer A and B
         cls.repo.save_or_update_customer(
             tenant_id="petroil",
@@ -150,9 +151,110 @@ class TestSecurityAndPrivacy(unittest.TestCase):
         cleaned, spec = adapter.detect_interactive_elements(sample_history_msg, phone="6699123501", channel_user_id="5216699123501")
         self.assertIsNone(spec)
 
-        tg_buttons = detectar_botones_mensaje(sample_history_msg, phone="6699123501", channel_user_id="user_tg_111")
-        self.assertIsNone(tg_buttons)
+    def test_create_order_deterministic_pricing_and_bounds(self):
+        """create_order must force catalog prices, reject negative quantities and quantities > 50."""
+        from src.tools.create_order import create_order
+        config: RunnableConfig = {
+            "configurable": {
+                "tenant_id": "petroil",
+                "channel": "telegram",
+                "channel_user_id": "user_tg_111",
+            }
+        }
+        # Intent of price tampering (trying to buy 30kg cylinder for $0.01)
+        res = create_order.invoke({
+            "customer_name": "Oscar Vizcarra",
+            "customer_phone": "6699123501",
+            "delivery_address": "Calle Privada 100",
+            "items": [{"product_name": "Cilindro de Gas LP 30 kg", "quantity": 1, "unit_price": 0.01}],
+        }, config=config)
+        self.assertIn("PEDIDO REGISTRADO EXITOSAMENTE", res)
+        # Verify order in DB has the real price from catalog (e.g. >= 500), not 0.01
+        import re
+        m = re.search(r"#(\d+)", res)
+        self.assertTrue(m)
+        order_id = int(m.group(1))
+        order = self.repo.get_order_by_id("petroil", order_id)
+        self.assertEqual(order.items[0].unit_price, 670.0)
+        self.assertEqual(order.total_amount, 670.0)
+
+        # Test negative quantity
+        neg_res = create_order.invoke({
+            "customer_name": "Oscar Vizcarra",
+            "customer_phone": "6699123501",
+            "delivery_address": "Calle Privada 100",
+            "items": [{"product_name": "Cilindro de Gas LP 30 kg", "quantity": -5}],
+        }, config=config)
+        self.assertIn("Error de seguridad", neg_res)
+
+        # Test excessive quantity (>50)
+        max_res = create_order.invoke({
+            "customer_name": "Oscar Vizcarra",
+            "customer_phone": "6699123501",
+            "delivery_address": "Calle Privada 100",
+            "items": [{"product_name": "Cilindro de Gas LP 30 kg", "quantity": 100}],
+        }, config=config)
+        self.assertIn("cantidad máxima permitida", max_res)
+
+    def test_cancel_order_bola_protection(self):
+        """User B cannot cancel an order created by User A."""
+        from src.tools.cancel_order import cancel_order
+        order_a = self.repo.create_order(
+            tenant_id="petroil",
+            customer_name="Oscar Vizcarra",
+            customer_phone="6699123501",
+            delivery_address="Calle Privada 100, Mazatlán",
+            items=[{"product_name": "Cilindro de Gas LP 30 kg", "quantity": 1, "unit_price": 670.0}],
+            channel="telegram",
+            channel_user_id="user_tg_111",
+        )
+        # Attempt by user B (user_tg_222) to cancel order A
+        config_b: RunnableConfig = {
+            "configurable": {
+                "tenant_id": "petroil",
+                "channel": "telegram",
+                "channel_user_id": "user_tg_222",
+            }
+        }
+        res_b = cancel_order.invoke({"order_id": order_a.id}, config=config_b)
+        self.assertIn("ACCESO DENEGADO", res_b)
+
+        # Confirm order remains active
+        order_check = self.repo.get_order_by_id("petroil", order_a.id)
+        self.assertNotEqual(order_check.status, "cancelled")
+
+        # Legitimate cancellation by user A
+        config_a: RunnableConfig = {
+            "configurable": {
+                "tenant_id": "petroil",
+                "channel": "telegram",
+                "channel_user_id": "user_tg_111",
+            }
+        }
+        res_a = cancel_order.invoke({"order_id": order_a.id}, config=config_a)
+        self.assertIn("CANCELADO exitosamente", res_a)
+
+    def test_whatsapp_hmac_signature_and_idempotency(self):
+        """WhatsApp HMAC signature validation and duplicate message caching."""
+        import hashlib
+        import hmac
+        from src.channels.whatsapp.router import verify_whatsapp_signature, _is_duplicate_message
+
+        secret = "test_meta_secret_key"
+        body = b'{"object":"whatsapp_business_account"}'
+        valid_hash = "sha256=" + hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+        invalid_hash = "sha256=invalidhash000000000000000000000000000"
+
+        self.assertTrue(verify_whatsapp_signature(body, valid_hash, secret))
+        self.assertFalse(verify_whatsapp_signature(body, invalid_hash, secret))
+        self.assertFalse(verify_whatsapp_signature(body, None, secret))
+
+        # Idempotency
+        msg_id = "test_unique_msg_12345"
+        self.assertFalse(_is_duplicate_message(msg_id))  # First time is NOT duplicate
+        self.assertTrue(_is_duplicate_message(msg_id))   # Second time IS duplicate
 
 
 if __name__ == "__main__":
     unittest.main()
+

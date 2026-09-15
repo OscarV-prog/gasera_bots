@@ -59,6 +59,56 @@ def create_order(
     repo = get_repository()
 
     try:
+        # Sanitizar teléfono del cliente
+        import re
+        clean_phone_digits = re.sub(r"\D", "", customer_phone)
+        if len(clean_phone_digits) < 7 or len(clean_phone_digits) > 15:
+            return "Error: El número de teléfono proporcionado no es válido. Debe contener al menos 7 a 10 dígitos."
+
+        # Validación determinista de catálogo, precios y cantidades
+        official_products = repo.get_all_products(tenant_id)
+        prods_by_id = {p.id: p for p in official_products}
+        prods_by_name = {p.name.lower(): p for p in official_products}
+
+        validated_items = []
+        for it in items:
+            p_name = it.get("product_name") or it.get("name") or it.get("product_id") or ""
+            p_id = it.get("product_id") or ""
+            try:
+                qty = float(it.get("quantity", 1))
+            except (ValueError, TypeError):
+                qty = 1.0
+
+            if qty <= 0:
+                return f"Error de seguridad: La cantidad para '{p_name}' debe ser mayor a 0."
+            if qty > 50:
+                return f"Error: La cantidad máxima permitida por pedido minorista es de 50 unidades. Para pedidos de mayoreo, por favor contacta a un asesor."
+
+            # Buscar en catálogo oficial
+            matched_prod = prods_by_id.get(p_id) or prods_by_name.get(p_name.lower())
+            if not matched_prod:
+                # Búsqueda parcial por nombre
+                for p in official_products:
+                    if p.name.lower() in p_name.lower() or p_name.lower() in p.name.lower():
+                        matched_prod = p
+                        break
+
+            if matched_prod:
+                if not matched_prod.in_stock:
+                    return f"Aviso: El producto '{matched_prod.name}' se encuentra temporalmente agotado."
+                validated_items.append({
+                    "product_id": matched_prod.id,
+                    "product_name": matched_prod.name,
+                    "quantity": int(qty) if qty.is_integer() else qty,
+                    "unit_price": matched_prod.price,  # PRECIO DETERMINISTA FORZADO DE BD
+                })
+            else:
+                validated_items.append({
+                    "product_id": p_id or "cilindro-gas",
+                    "product_name": p_name or "Cilindro de Gas LP",
+                    "quantity": int(qty) if qty.is_integer() else qty,
+                })
+
         clean_addr = resolve_gps_address_to_name(delivery_address.strip())
         if (not clean_addr or clean_addr.lower().startswith("ubicaci")) and delivery_lat is not None and delivery_lng is not None:
             resolved = reverse_geocode(delivery_lat, delivery_lng)
@@ -70,7 +120,7 @@ def create_order(
             customer_name=customer_name.strip(),
             customer_phone=customer_phone.strip(),
             delivery_address=clean_addr,
-            items=items,
+            items=validated_items,
             delivery_schedule=delivery_schedule.strip() if delivery_schedule else "Lo antes posible",
             payment_method=payment_method.strip() if payment_method else "Efectivo",
             notes=notes.strip(),

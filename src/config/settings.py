@@ -54,6 +54,12 @@ class Settings(BaseModel):
     whatsapp_api_version: str = Field(
         default_factory=lambda: os.getenv("WHATSAPP_API_VERSION", "v21.0")
     )
+    whatsapp_app_secret: str = Field(
+        default_factory=lambda: os.getenv("WHATSAPP_APP_SECRET", "")
+    )
+    cors_origins: str = Field(
+        default_factory=lambda: os.getenv("CORS_ORIGINS", "*")
+    )
 
 
 @lru_cache(maxsize=1)

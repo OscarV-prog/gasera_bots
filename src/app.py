@@ -20,6 +20,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from src.config.settings import get_settings
 from src.channels.web.router import router as web_router
 from src.channels.whatsapp.router import router as whatsapp_router
 from src.channels.telegram.router import router as telegram_router
@@ -28,13 +29,19 @@ from src.admin.router import router as admin_router
 
 app = FastAPI(title="Multi-Channel Sales Agent & Petroil Backoffice")
 
+# Configuración de CORS segura y configurable
+settings = get_settings()
+raw_cors = settings.cors_origins.strip()
+allowed_origins = ["*"] if raw_cors == "*" else [o.strip() for o in raw_cors.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
 
 # Static files for Admin Backoffice
 ADMIN_STATIC_DIR = Path(__file__).parent / "admin" / "static"

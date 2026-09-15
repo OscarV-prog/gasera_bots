@@ -447,6 +447,15 @@ class SqliteRepository(ProductRepository):
                 new_channel = channel if (channel and channel not in ("dashboard", "web", "admin_manual")) else (existing["channel"] or channel)
                 new_uid = channel_user_id if (channel_user_id and channel_user_id not in ("dashboard", "web", "admin_manual")) else (existing["channel_user_id"] or channel_user_id)
 
+                if new_channel and new_uid:
+                    cur_check = conn.execute(
+                        "SELECT id FROM customers WHERE tenant_id = ? AND channel = ? AND channel_user_id = ? AND id != ?",
+                        (tenant_id, new_channel, new_uid, existing["id"])
+                    )
+                    if cur_check.fetchone():
+                        new_channel = existing["channel"]
+                        new_uid = existing["channel_user_id"]
+
                 conn.execute(
                     """
                     UPDATE customers
@@ -457,6 +466,7 @@ class SqliteRepository(ProductRepository):
                 )
                 customer_id = existing["id"]
                 created_at = existing["created_at"]
+
             else:
                 new_name = name
                 new_phone = phone
