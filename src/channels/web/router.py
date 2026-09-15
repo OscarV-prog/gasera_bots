@@ -28,7 +28,7 @@ WEB_DIR = Path(__file__).parent
 
 @router.get("/", response_class=HTMLResponse)
 async def index():
-    return (WEB_DIR / "index.html").read_text()
+    return (WEB_DIR / "index.html").read_text(encoding="utf-8")
 
 
 @router.get("/api/tenants")

@@ -9,51 +9,83 @@ from __future__ import annotations
 
 from typing import Literal
 
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, trim_messages
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
 from src.config.llm_provider import create_llm
-from src.config.tenant_config import get_tenant
+from src.config.tenant_config import TenantConfig, get_tenant
 from src.state.agent_state import SalesAgentState
-from src.tools import ALL_TOOLS
+from src.tools import (
+    ALL_TOOLS,
+    cancel_order,
+    create_order,
+    delete_customer_address,
+    get_customer_info,
+    get_order_status,
+    get_promotions,
+    search_by_image,
+    search_products,
+    send_product_image,
+)
+
+
+def get_tenant_tools(tc: TenantConfig) -> list:
+    """Select only the tools enabled for the given tenant."""
+    tools = [
+        search_products,
+        create_order,
+        get_order_status,
+        get_customer_info,
+        cancel_order,
+        delete_customer_address,
+    ]
+    if getattr(tc.features, "image_search", False):
+        tools.append(search_by_image)
+        tools.append(send_product_image)
+    if getattr(tc.features, "promotions", False):
+        tools.append(get_promotions)
+    return tools
 
 
 def _build_system_prompt(tenant_id: str, channel: str | None = None) -> str:
-    """Build a system prompt from the tenant's config."""
+    """Build a concise, efficient system prompt from the tenant's config."""
     tc = get_tenant(tenant_id)
     agent = tc.agent
 
-    products_hint = (
-        "You have tools to search products, find promotions, "
-        "send product images, and find similar items by image description.\n\n"
-        "CRITICAL RULES FOR TOOLS:\n"
-        "- ALWAYS call search_products FIRST when a customer asks about products, "
-        "categories, flowers, bouquets, or anything related to the catalog.\n"
-        "- NEVER describe, list, or suggest products from your own knowledge. "
-        "You MUST use the tools to find real products.\n"
-        "- If search returns no results, say so honestly — do NOT invent categories or items.\n"
-        "- To show product photos, ALWAYS call the send_product_image tool with the product_id. "
-        "NEVER paste image URLs directly into your text response. "
-        "NEVER use markdown image syntax like ![](url). "
-        "The send_product_image tool handles rendering on the customer's device.\n"
-        "- When the customer says 'покажи', 'фото', 'show', or similar — "
-        "call send_product_image for each relevant product."
-    )
+    channel_hint = f"Canal de atención: {channel}.\n\n" if channel else ""
+    rules_text = "\n".join(f"- {r}" for r in agent.rules) if agent.rules else ""
+    rules_section = f"\n\n## Reglas Clave\n{rules_text}" if rules_text else ""
 
-    channel_hint = f"You are chatting on {channel}.\n\n" if channel else ""
+    # Inyectar catálogo oficial de productos del repositorio en el prompt del sistema
+    catalog_section = ""
+    try:
+        from src.repositories import get_repository
+        repo = get_repository()
+        prods = repo.get_all_products(tenant_id)
+        if prods:
+            lines = [f"• {p.name} ({p.category}): ${p.price:,.2f} {p.currency}" for p in prods if p.in_stock]
+            catalog_section = (
+                f"\n\n## Catálogo Oficial de Productos Disponibles en el Sistema:\n"
+                + "\n".join(lines)
+                + "\n\nIMPORTANTE: Todos los productos y capacidades listados arriba están 100% DISPONIBLES y autorizados para venta. "
+                + "Si el cliente solicita o selecciona cualquiera de ellos (incluyendo cilindros de 5 kg, 10 kg, 20 kg, 30 kg o 45 kg, o recarga de tanque estacionario), "
+                + "NUNCA digas que no cuentas con él; acéptalo de inmediato y continúa con el siguiente paso del pedido (pedir teléfono o dirección de entrega)."
+            )
+    except Exception:
+        pass
+
+    lang_hint = ""
+    if tc.language and tc.language != "es":
+        lang_hint = f"\n\n## Idioma\nResponde en idioma: {tc.language}."
 
     return (
-        f"You are {agent.name}, a {agent.role} at {tc.business_name}.\n\n"
-        f"{agent.personality}\n\n"
+        f"Eres {agent.name}, {agent.role} de {tc.business_name}.\n\n"
         f"{channel_hint}"
-        f"## Rules\n"
-        + "\n".join(f"- {r}" for r in agent.rules)
-        + f"\n\n## Important\n{products_hint}\n"
-        f"\n## Language\n"
-        f"You MUST respond ONLY in: {tc.language}. "
-        f"If language is 'ru', respond in Russian (NOT Kazakh, NOT English). "
-        f"Match the customer's language only if they explicitly write in another language.\n"
+        f"{agent.personality.strip()}"
+        f"{catalog_section}"
+        f"{rules_section}"
+        f"{lang_hint}"
     )
 
 
@@ -65,13 +97,33 @@ async def assistant_node(
     tenant_id = config["configurable"]["tenant_id"]
     tc = get_tenant(tenant_id)
 
-    # Create provider-agnostic LLM from tenant config
-    model = create_llm(tc).bind_tools(ALL_TOOLS)
+    # Bind only the active tools configured for this tenant
+    active_tools = get_tenant_tools(tc)
+    model = create_llm(tc).bind_tools(active_tools)
 
-    # Prepare messages: system prompt + conversation history
+    # Prepare messages: system prompt + trimmed conversation history
     channel = state.get("channel")
     system = SystemMessage(content=_build_system_prompt(tenant_id, channel))
-    messages = [system] + state["messages"]
+
+    raw_history = state.get("messages", [])
+    if raw_history:
+        # Keep full order flow with generous sliding window (up to 25 messages),
+        # ensuring it starts on a human message and preserves tool call pairs.
+        trimmed_history = trim_messages(
+            raw_history,
+            max_tokens=25,
+            strategy="last",
+            token_counter=len,
+            start_on="human",
+            include_system=False,
+            allow_partial=False,
+        )
+        if not trimmed_history:
+            trimmed_history = raw_history[-2:]
+    else:
+        trimmed_history = []
+
+    messages = [system] + list(trimmed_history)
 
     # Invoke
     response = await model.ainvoke(messages, config=config)

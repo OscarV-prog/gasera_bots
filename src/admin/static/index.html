@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petroil - Panel de Control Administrativo y Logística</title>
+    <meta name="description" content="Backoffice Administrativo y Torre de Control Web para Gas a Tu Puerta - Petroil. Gestión en tiempo real de pedidos, catálogo de productos, flota de choferes y clientes.">
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="/static/admin/css/admin.css">
+</head>
+<body>
+
+    <!-- ====================================================================
+         Sidebar Navigation
+         ==================================================================== -->
+    <aside class="sidebar">
+        <div class="brand-header">
+            <div class="brand-header-content">
+                <div class="brand-icon">⛽</div>
+                <div>
+                    <div class="brand-title">Petroil Gas</div>
+                    <div class="brand-subtitle">Backoffice Central</div>
+                </div>
+            </div>
+            <button class="sidebar-close-btn" id="sidebar-close" aria-label="Cerrar Menú">&times;</button>
+        </div>
+
+        <ul class="nav-menu">
+            <li>
+                <a href="#dashboard" class="nav-item active" data-tab="dashboard" id="nav-dashboard">
+                    <span class="icon">📊</span>
+                    <span>Dashboard en Vivo</span>
+                </a>
+            </li>
+            <li>
+                <a href="#orders" class="nav-item" data-tab="orders" id="nav-orders">
+                    <span class="icon">📦</span>
+                    <span>Pedidos & Envíos</span>
+                    <span class="nav-badge" id="badge-active-orders">0</span>
+                </a>
+            </li>
+            <li>
+                <a href="#agenda" class="nav-item" data-tab="agenda" id="nav-agenda">
+                    <span class="icon">🗓️</span>
+                    <span>Agenda Programada</span>
+                    <span class="nav-badge" id="badge-agenda-orders" style="background: rgba(59, 130, 246, 0.85); color: var(--text-heading); display: none;">0</span>
+                </a>
+            </li>
+            <li>
+                <a href="#rejections" class="nav-item" data-tab="rejections" id="nav-rejections">
+                    <span class="icon">🚨</span>
+                    <span>Incidencias & Rechazos</span>
+                    <span class="nav-badge" id="badge-rejections" style="background: var(--accent-rose); display: none;">0</span>
+                </a>
+            </li>
+            <li>
+                <a href="#products" class="nav-item" data-tab="products" id="nav-products">
+                    <span class="icon">⛽</span>
+                    <span>Catálogo de Productos</span>
+                </a>
+            </li>
+            <li>
+                <a href="#drivers" class="nav-item" data-tab="drivers" id="nav-drivers">
+                    <span class="icon">🛻</span>
+                    <span>Choferes / Operadores</span>
+                </a>
+            </li>
+            <li>
+                <a href="#vehicles" class="nav-item" data-tab="vehicles" id="nav-vehicles">
+                    <span class="icon">🚛</span>
+                    <span>Unidades / Flota</span>
+                </a>
+            </li>
+            <li>
+                <a href="#customers" class="nav-item" data-tab="customers" id="nav-customers">
+                    <span class="icon">👤</span>
+                    <span>Directorio de Clientes</span>
+                </a>
+            </li>
+            <li>
+                <a href="#reports" class="nav-item" data-tab="reports" id="nav-reports">
+                    <span class="icon">📊</span>
+                    <span>Reportes & Excel</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <div class="footer-status">
+                <span>🟢 Sistema Conectado</span>
+                <span class="footer-version">v2.4 Petroil</span>
+            </div>
+            <button class="sidebar-theme-btn" onclick="toggleTheme()" title="Cambiar Tema (Claro / Oscuro)">
+                <span class="theme-icon">🌙</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Sidebar Mobile Backdrop Overlay -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+    <!-- ====================================================================
+         Main Workspace
+         ==================================================================== -->
+    <main class="main-content">
+        
+        <!-- Top Bar Header -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Abrir Menú de Navegación">☰</button>
+                <div>
+                    <h1 class="page-title">Centro de Operaciones y Administración</h1>
+                    <p class="page-subtitle">Supervisión logística, ventas y gestión de recursos en tiempo real</p>
+                </div>
+            </div>
+            <div class="top-actions">
+                <button class="btn btn-theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Cambiar Tema (Claro / Oscuro)">
+                    <span class="theme-icon">🌙</span>
+                    <span class="theme-text">Modo Oscuro</span>
+                </button>
+                <button class="btn btn-primary" onclick="openCreateOrderModal()">
+                    ➕ Levantar Pedido
+                </button>
+                <button class="btn btn-secondary" onclick="loadDashboardMetrics(); loadOrders(); loadProducts(); loadDrivers(); showToast('Datos actualizados', 'info');">
+                    🔄 Actualizar
+                </button>
+            </div>
+        </header>
+
+        <!-- ================================================================
+             Tab 1: Dashboard en Vivo
+             ================================================================ -->
+        <section id="tab-dashboard" class="tab-section active">
+            <!-- KPI Metrics -->
+            <div class="metrics-grid">
+                <div class="kpi-card" onclick="filterActiveOrders()" style="cursor: pointer; border: 1px solid rgba(6, 182, 212, 0.3);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">🔥 Pedidos Activos</span>
+                        <div class="kpi-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan);">🚀</div>
+                    </div>
+                    <div class="kpi-val" id="kpi-active-orders" style="color: var(--accent-cyan);">0</div>
+                    <div class="kpi-desc">Clic para filtrar activos en vivo ↗</div>
+                </div>
+
+                <div class="kpi-card" onclick="switchTab('rejections')" style="cursor: pointer; border: 1px solid rgba(244, 63, 94, 0.3);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">🚨 Incidencias / Rechazos</span>
+                        <div class="kpi-icon" style="background: rgba(244, 63, 94, 0.15); color: var(--accent-rose);">⚠️</div>
+                    </div>
+                    <div class="kpi-val" id="kpi-unresolved-rejections" style="color: var(--accent-rose);">0</div>
+                    <div class="kpi-desc">Rechazados pendientes de reasignar</div>
+                </div>
+
+                <div class="kpi-card" onclick="switchTab('drivers')" style="cursor: pointer;">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Flota de Choferes</span>
+                        <div class="kpi-icon" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">🛻</div>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: baseline; margin-top: 4px; font-size: 1.1rem; font-weight: 700;">
+                        <span style="color: var(--accent-emerald);" title="Disponibles">🟢 <span id="kpi-drivers-available">0</span></span>
+                        <span style="color: var(--accent-amber);" title="En Entrega">🟡 <span id="kpi-drivers-busy">0</span></span>
+                        <span style="color: var(--accent-rose);" title="Fuera de Servicio">🔴 <span id="kpi-drivers-off">0</span></span>
+                    </div>
+                    <div class="kpi-desc">Disponibles / En entrega / Fuera</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Entregas Completadas</span>
+                        <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">📦</div>
+                    </div>
+                    <div class="kpi-val" id="kpi-delivered-orders">0</div>
+                    <div class="kpi-desc">Pedidos entregados con éxito</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Ventas Totales Cobradas</span>
+                        <div class="kpi-icon" style="background: rgba(249, 115, 22, 0.15); color: var(--accent-orange);">💰</div>
+                    </div>
+                    <div class="kpi-val" id="kpi-total-revenue">$0.00</div>
+                    <div class="kpi-desc">Total recaudado hoy</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">💵 Cobrado en Efectivo</span>
+                        <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">💵</div>
+                    </div>
+                    <div class="kpi-val" id="kpi-cash-revenue" style="color: var(--accent-emerald);">$0.00</div>
+                    <div class="kpi-desc">Total recibido en efectivo hoy</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">💳 Cobrado con Tarjeta</span>
+                        <div class="kpi-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan);">💳</div>
+                    </div>
+                    <div class="kpi-val" id="kpi-card-revenue" style="color: var(--accent-cyan);">$0.00</div>
+                    <div class="kpi-desc">Total con terminal / tarjeta hoy</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">⭐ Satisfacción Choferes</span>
+                        <div class="kpi-icon" style="background: rgba(234, 179, 8, 0.15); color: var(--accent-amber);">⭐</div>
+                    </div>
+                    <div class="kpi-val" id="kpi-csat-rating" style="color: var(--accent-amber);">5.0 ⭐</div>
+                    <div class="kpi-desc"><span id="kpi-csat-count">0</span> opiniones registradas</div>
+                </div>
+            </div>
+
+            <!-- Recent Orders Card (Active & Recent) -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">🚨 Pedidos Activos y Recientes en Tablero</h2>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">Flujo en tiempo real de pedidos entrantes y en ruta</p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="openCreateOrderModal()">➕ Crear Pedido</button>
+                        <button class="btn btn-secondary btn-sm" onclick="switchTab('orders')">Ver todos los pedidos →</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Folio / Fecha y Hora</th>
+                                <th>Cliente</th>
+                                <th>Dirección de Entrega</th>
+                                <th>Productos</th>
+                                <th>Total</th>
+                                <th>Chofer Asignado</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-recent-orders-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ================================================================
+                 Agenda de Entregas y Pedidos Programados (Dashboard)
+                 ================================================================ -->
+            <div class="card" style="margin-bottom: 24px; border: 1px solid rgba(59, 130, 246, 0.35); box-shadow: 0 4px 20px rgba(0,0,0,0.25);">
+                <div class="card-header" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h2 class="card-title" style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                                <span>🗓️</span> Agenda de Entregas y Pedidos Programados
+                            </h2>
+                            <span class="badge" id="agenda-badge-count" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 700;">0 en agenda</span>
+                        </div>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">
+                            Monitoreo de pedidos con horario pactado. Se activan automáticamente en la mesa de despacho <strong>30 minutos antes de su hora límite (deadline)</strong>.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="switchTab('agenda')">Ver Agenda Completa →</button>
+                        <div style="display: flex; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); padding: 2px;">
+                            <button type="button" class="btn btn-sm btn-primary" id="agenda-filter-btn-all" onclick="filterAgenda('all')">Todos</button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="agenda-filter-btn-today" onclick="filterAgenda('today')">Hoy</button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="agenda-filter-btn-tomorrow" onclick="filterAgenda('tomorrow')">Mañana</button>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="loadAgenda(); showToast('Agenda actualizada', 'info');" title="Refrescar agenda">🔄</button>
+                    </div>
+                </div>
+
+                <!-- Agenda Metrics / Counters -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 12px 18px; background: rgba(15, 23, 42, 0.4); border-bottom: 1px solid rgba(255,255,255,0.06);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-size: 1.4rem;">⏳</div>
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">En Espera (>30 min)</div>
+                            <div style="font-size: 1.15rem; font-weight: 800; color: #60a5fa;" id="agenda-count-waiting">0</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-size: 1.4rem;">🟢</div>
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Activos en Tablero (≤30 min)</div>
+                            <div style="font-size: 1.15rem; font-weight: 800; color: var(--accent-emerald);" id="agenda-count-active">0</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-size: 1.4rem;">🛻</div>
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Chofer Pre-asignado</div>
+                            <div style="font-size: 1.15rem; font-weight: 800; color: var(--accent-amber);" id="agenda-count-assigned">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora Pactada (Deadline)</th>
+                                <th>Estado de Activación</th>
+                                <th>Folio / Cliente</th>
+                                <th>Dirección de Entrega</th>
+                                <th>Productos</th>
+                                <th>Total / Pago</th>
+                                <th>Chofer / Unidad</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-agenda-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Driver Shifts / Attendance Card on Main Dashboard -->
+            <div class="card" style="margin-top: 24px;">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">⏱️ Asistencia y Horas de Turno de Choferes (Hoy)</h2>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">Hora de entrada, salida y tiempo laborado en tiempo real por cada operador</p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="switchTab('drivers')">Ver Flota de Choferes →</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Chofer</th>
+                                <th>Unidad</th>
+                                <th>Estado de Turno</th>
+                                <th>🟢 Hora Entrada</th>
+                                <th>🔴 Hora Salida</th>
+                                <th>⏱️ Tiempo Laborado</th>
+                                <th>⛽ Carga Inicial</th>
+                                <th>🏁 Carga Final</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-shifts-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================
+             Tab 2: Pedidos & Envíos
+             ================================================================ -->
+        <section id="tab-orders" class="tab-section">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📦 Todos los Pedidos</h2>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <button class="btn btn-primary btn-sm" onclick="openCreateOrderModal()">➕ Nuevo Pedido</button>
+                        <input type="text" id="orders-search-input" class="input-search" placeholder="🔍 Buscar por folio, cliente, calle..." oninput="loadOrders()">
+                        <select id="orders-filter-status" class="form-control" style="width: 220px;" onchange="loadOrders()">
+                            <option value="all">Todos los estados (Historial)</option>
+                            <option value="active">🔥 Pedidos Activos (Todos)</option>
+                            <option value="confirmed">🔵 Pendientes de Asignar</option>
+                            <option value="rejected_by_driver">⚠️ Rechazados por Chofer</option>
+                            <option value="assigned">🟣 Asignados a Chofer</option>
+                            <option value="in_route">🟡 En Camino (En Ruta)</option>
+                            <option value="delivered">🟢 Entregados</option>
+                            <option value="scheduled">🔷 Programados</option>
+                            <option value="cancelled">🔴 Cancelados</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" onclick="exportOrdersExcel()" title="Exportar pedidos a Excel">📥 Excel</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Folio / Fecha y Hora</th>
+                                <th>Cliente</th>
+                                <th>Dirección</th>
+                                <th>Productos & Horario</th>
+                                <th>Total</th>
+                                <th>Chofer</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================
+             Tab: Agenda Programada
+             ================================================================ -->
+        <section id="tab-agenda" class="tab-section">
+            <div class="card">
+                <div class="card-header" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h2 class="card-title" style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                                <span>🗓️</span> Agenda de Entregas y Pedidos Programados
+                            </h2>
+                            <span class="badge" id="agenda-tab-badge-count" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 700;">0 en agenda</span>
+                        </div>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">
+                            Control y programación de entregas anticipadas. Los pedidos se transfieren automáticamente a la mesa de despacho activa <strong>30 minutos antes del deadline pactado</strong>.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="agenda-search-input" class="input-search" placeholder="🔍 Buscar cliente, teléfono, folio..." oninput="filterAgendaSearch()">
+                        <div style="display: flex; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); padding: 2px;">
+                            <button type="button" class="btn btn-sm btn-primary" id="agenda-tab-filter-btn-all" onclick="filterAgenda('all')">Todos</button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="agenda-tab-filter-btn-today" onclick="filterAgenda('today')">Hoy</button>
+                            <button type="button" class="btn btn-sm btn-secondary" id="agenda-tab-filter-btn-tomorrow" onclick="filterAgenda('tomorrow')">Mañana</button>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="loadAgenda(); showToast('Agenda actualizada', 'info');" title="Refrescar agenda">🔄 Actualizar</button>
+                    </div>
+                </div>
+
+                <!-- Agenda Metrics / Counters in Tab -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 12px 18px; background: rgba(15, 23, 42, 0.4); border-bottom: 1px solid rgba(255,255,255,0.06);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-size: 1.4rem;">⏳</div>
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">En Espera (>30 min)</div>
+                            <div style="font-size: 1.15rem; font-weight: 800; color: #60a5fa;" id="agenda-tab-count-waiting">0</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-size: 1.4rem;">🟢</div>
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Activos en Tablero (≤30 min)</div>
+                            <div style="font-size: 1.15rem; font-weight: 800; color: var(--accent-emerald);" id="agenda-tab-count-active">0</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-size: 1.4rem;">🛻</div>
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Chofer Pre-asignado</div>
+                            <div style="font-size: 1.15rem; font-weight: 800; color: var(--accent-amber);" id="agenda-tab-count-assigned">0</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-size: 1.4rem;">📅</div>
+                        <div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Total Programados</div>
+                            <div style="font-size: 1.15rem; font-weight: 800; color: var(--text-heading);" id="agenda-tab-count-total">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora Pactada (Deadline)</th>
+                                <th>Estado de Activación</th>
+                                <th>Folio / Cliente</th>
+                                <th>Dirección de Entrega</th>
+                                <th>Productos</th>
+                                <th>Total / Pago</th>
+                                <th>Chofer / Unidad</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agenda-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================
+             Tab 3: Incidencias & Rechazos de Choferes
+             ================================================================ -->
+        <section id="tab-rejections" class="tab-section">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">🚨 Bitácora de Incidencias y Pedidos Rechazados</h2>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">Supervisión en tiempo real de viajes rechazados o cancelados por choferes con el motivo reportado.</p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <a href="/api/admin/reports/excel/rejections" target="_blank" class="btn btn-secondary btn-sm" title="Descargar bitácora en Excel">📥 Exportar Excel</a>
+                        <button class="btn btn-secondary btn-sm" onclick="loadRejections(); showToast('Incidencias actualizadas', 'info');">🔄 Actualizar</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Folio Pedido</th>
+                                <th>Cliente & Teléfono</th>
+                                <th>Dirección</th>
+                                <th>Chofer que Rechazó</th>
+                                <th>⚠️ Motivo Reportado</th>
+                                <th>Fecha y Hora</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rejections-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================
+             Tab 3: Catálogo de Productos
+             ================================================================ -->
+        <section id="tab-products" class="tab-section">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">⛽ Catálogo Oficial de Productos Petroil</h2>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">Los precios y disponibilidad aquí configurados se sincronizan en tiempo real con el Bot de Clientes.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openAddProductModal()">➕ Agregar Producto</button>
+                </div>
+                <div class="metrics-grid" id="products-grid-container" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================
+             Tab 4: Choferes / Flota
+             ================================================================ -->
+        <section id="tab-drivers" class="tab-section">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">🛻 Flota de Choferes y Unidades</h2>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">Monitoreo de repartidores, tipo de unidad asignada y disponibilidad para despacho automático.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openAddDriverModal()">➕ Registrar Chofer</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre & Teléfono</th>
+                                <th>Vehículo / Placas</th>
+                                <th>Zona</th>
+                                <th>Calificación</th>
+                                <th>Estado</th>
+                                <th>Último GPS</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="drivers-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================
+             Tab 5: Gestión de Unidades y Vehículos
+             ================================================================ -->
+        <section id="tab-vehicles" class="tab-section">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">🚛 Inventario de Unidades y Vehículos</h2>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">Control de flota: pipas de gas estacionario, camionetas de cilindros, placas, capacidades y operadores asignados.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openAddVehicleModal()">➕ Registrar Nueva Unidad</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Identificador</th>
+                                <th>Modelo & Placas</th>
+                                <th>Tipo de Unidad</th>
+                                <th>Capacidad</th>
+                                <th>Chofer Asignado</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vehicles-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================
+             Tab 6: Directorio de Clientes
+             ================================================================ -->
+        <section id="tab-customers" class="tab-section">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">👤 Directorio de Clientes Frecuentes</h2>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">Clientes reconocidos en el sistema, historial de compras y libretas de direcciones guardadas.</p>
+                    </div>
+                    <input type="text" id="customers-search-input" class="input-search" placeholder="🔍 Buscar por nombre, teléfono o calle..." oninput="filterCustomersTable()">
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Cliente / Cuenta</th>
+                                <th>Teléfono</th>
+                                <th>Direcciones Registradas</th>
+                                <th>Pedidos</th>
+                                <th>Total Comprado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customers-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================
+             Tab 6: Reportes & Exportación Excel
+             ================================================================ -->
+        <section id="tab-reports" class="tab-section">
+            <!-- Master Card Banner -->
+            <div class="card" style="border: 1px solid rgba(16, 185, 129, 0.35); background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%);">
+                <div class="card-header" style="flex-wrap: wrap; gap: 16px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 2rem;">📗</span>
+                            <div>
+                                <h2 class="card-title" style="color: var(--text-heading); font-size: 1.35rem;">Libro Maestro Completo de la Torre de Control</h2>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 3px;">
+                                    Descarga un solo archivo Excel (.xlsx) con <strong>4 hojas organizadas</strong>: Pedidos & Ventas, Incidencias & Rechazos, Flota de Choferes y Directorio de Clientes.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="/api/admin/reports/excel/master" target="_blank" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 10px 22px; font-weight: 700; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35); display: inline-flex; align-items: center; gap: 8px;">
+                        <span>📥</span> Descargar Libro Maestro (.xlsx)
+                    </a>
+                </div>
+            </div>
+
+            <!-- Individual Report Cards Grid -->
+            <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); margin-top: 20px;">
+                
+                <!-- Reporte Pedidos -->
+                <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+                            <div style="font-size: 1.8rem; background: rgba(59, 130, 246, 0.15); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md);">📦</div>
+                            <div>
+                                <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-heading);">Pedidos y Ventas</h3>
+                                <span style="font-size: 0.78rem; color: var(--text-secondary);">Historial detallado con importes y estados</span>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.4;">
+                            Incluye folios, clientes, teléfonos, direcciones, métodos de pago, notas de entrega, choferes y estados.
+                        </p>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                        <select id="report-order-status" class="form-control" style="font-size: 0.85rem;">
+                            <option value="">Todos los pedidos</option>
+                            <option value="active">Solo pedidos activos</option>
+                            <option value="delivered">Solo entregados</option>
+                            <option value="rejected_by_driver">Solo rechazados por chofer</option>
+                            <option value="cancelled">Solo cancelados</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="exportFilteredOrdersExcel()" style="width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>📥</span> Exportar Pedidos (.xlsx)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Reporte Incidencias -->
+                <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+                            <div style="font-size: 1.8rem; background: rgba(244, 63, 94, 0.15); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md);">🚨</div>
+                            <div>
+                                <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-heading);">Incidencias & Rechazos</h3>
+                                <span style="font-size: 0.78rem; color: var(--text-secondary);">Bitácora de motivos de declinación</span>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.4;">
+                            Supervisión de fallas mecánicas, desabasto o causas reportadas por choferes al rechazar o cancelar viajes.
+                        </p>
+                    </div>
+                    <div style="margin-top: 16px;">
+                        <a href="/api/admin/reports/excel/rejections" target="_blank" class="btn btn-secondary" style="width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>📥</span> Exportar Incidencias (.xlsx)
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Reporte Choferes -->
+                <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+                            <div style="font-size: 1.8rem; background: rgba(245, 158, 11, 0.15); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md);">🛻</div>
+                            <div>
+                                <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-heading);">Rendimiento de Choferes</h3>
+                                <span style="font-size: 0.78rem; color: var(--text-secondary);">Directorio, estatus y productividad</span>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.4;">
+                            Métricas de entregas completadas, montos cobrados por chofer, tipo de vehículo y estatus de servicio.
+                        </p>
+                    </div>
+                    <div style="margin-top: 16px;">
+                        <a href="/api/admin/reports/excel/drivers" target="_blank" class="btn btn-secondary" style="width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>📥</span> Exportar Flota (.xlsx)
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Reporte Clientes -->
+                <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+                            <div style="font-size: 1.8rem; background: rgba(139, 92, 246, 0.15); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md);">👥</div>
+                            <div>
+                                <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-heading);">Directorio de Clientes</h3>
+                                <span style="font-size: 0.78rem; color: var(--text-secondary);">Frecuencia y consumo acumulado</span>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.4;">
+                            Base de clientes con direcciones registradas, histórico de pedidos, total gastado y última fecha de compra.
+                        </p>
+                    </div>
+                    <div style="margin-top: 16px;">
+                        <a href="/api/admin/reports/excel/customers" target="_blank" class="btn btn-secondary" style="width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+                            <span>📥</span> Exportar Clientes (.xlsx)
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ====================================================================
+         Modal 1: Agregar / Editar Producto
+         ==================================================================== -->
+    <div class="modal-backdrop" id="modal-product">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-product-title">➕ Nuevo Producto</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="event.preventDefault(); saveProductForm();">
+                <div class="form-group">
+                    <label class="form-label">Código / ID Slug (ej. gas-lp-60kg):</label>
+                    <input type="text" id="form-product-id" class="form-control" required placeholder="gas-lp-60kg">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nombre del Producto:</label>
+                    <input type="text" id="form-product-name" class="form-control" required placeholder="Cilindro de Gas LP 60 kg">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Precio en MXN ($):</label>
+                    <input type="number" step="0.5" id="form-product-price" class="form-control" required placeholder="1250.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Categoría:</label>
+                    <select id="form-product-category" class="form-control">
+                        <option value="Cilindros">Cilindros de Gas</option>
+                        <option value="Tanque estacionario">Tanque Estacionario</option>
+                        <option value="Servicio">Servicio / Entrega</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descripción corta:</label>
+                    <textarea id="form-product-description" class="form-control" rows="2" placeholder="Ideal para hogares y negocios..."></textarea>
+                </div>
+                <div style="display: flex; gap: 20px; margin-top: 14px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem; cursor: pointer;">
+                        <input type="checkbox" id="form-product-stock" checked> En existencia
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem; cursor: pointer;">
+                        <input type="checkbox" id="form-product-promoted"> Producto destacado
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Guardar Producto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 2: Agregar / Editar Chofer
+         ==================================================================== -->
+    <div class="modal-backdrop" id="modal-driver">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-driver-title">➕ Registrar Chofer</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="event.preventDefault(); saveDriverForm();">
+                <input type="hidden" id="form-driver-id">
+                <div class="form-group">
+                    <label class="form-label">Nombre Completo del Chofer:</label>
+                    <input type="text" id="form-driver-name" class="form-control" required placeholder="Juan Pérez">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Teléfono Celular (10 dígitos):</label>
+                    <input type="tel" id="form-driver-phone" class="form-control" required placeholder="6691234567">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Unidad / Vehículo Asignado:</label>
+                    <select id="form-driver-vehicle-id" class="form-control" onchange="onDriverVehicleSelected()">
+                        <option value="">-- Sin unidad asignada --</option>
+                        <!-- Loaded dynamically from /api/admin/vehicles -->
+                    </select>
+                </div>
+                <div class="form-group" id="driver-vehicle-details-preview" style="display: none; background: rgba(59, 130, 246, 0.08); border: 1px dashed rgba(59, 130, 246, 0.35); border-radius: var(--radius-md); padding: 10px 14px;">
+                    <span id="driver-vehicle-preview-text" style="font-size: 0.82rem; color: #93c5fd;"></span>
+                </div>
+                <input type="hidden" id="form-driver-vtype" value="cilindros">
+                <input type="hidden" id="form-driver-plate" value="">
+                <div class="form-group">
+                    <label class="form-label">Zona de Operación:</label>
+                    <input type="text" id="form-driver-zone" class="form-control" placeholder="Mazatlán Centro / Norte">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telegram User ID (Opcional para vincular Bot):</label>
+                    <input type="text" id="form-driver-tgid" class="form-control" placeholder="987654321">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Guardar Chofer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 8: Agregar / Editar Unidad Vehicular
+         ==================================================================== -->
+    <div class="modal-backdrop" id="modal-vehicle">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-vehicle-title">➕ Registrar Nueva Unidad</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="event.preventDefault(); saveVehicleForm();">
+                <input type="hidden" id="form-vehicle-id">
+                <div class="form-group">
+                    <label class="form-label">Identificador de la Unidad (ej. PIPA-01, CAM-04):</label>
+                    <input type="text" id="form-vehicle-identifier" class="form-control" required placeholder="PIPA-01" style="text-transform: uppercase;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Placas del Vehículo:</label>
+                    <input type="text" id="form-vehicle-plate" class="form-control" required placeholder="VZ-8472-A" style="text-transform: uppercase;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Modelo del Vehículo (ej. Ford F-350 2022, Dodge Ram 4000):</label>
+                    <input type="text" id="form-vehicle-model" class="form-control" required placeholder="Ford F-350 2022">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo de Unidad:</label>
+                    <select id="form-vehicle-type" class="form-control" onchange="toggleVehicleCapacityFields()">
+                        <option value="camioneta">🛻 Camioneta que carga Cilindros</option>
+                        <option value="pipa">🚛 Pipa de Gas (Estacionario)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="group-vehicle-pipa-cap" style="display: none;">
+                    <label class="form-label">Capacidad de la Pipa (Litros):</label>
+                    <input type="number" step="50" min="50" id="form-vehicle-pipa-cap" class="form-control" placeholder="5000">
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">Capacidad máxima del tanque en litros de Gas LP.</span>
+                </div>
+                <div class="form-group" id="group-vehicle-cyl-cap">
+                    <label class="form-label">Capacidad de Cilindros (Cantidad Máxima):</label>
+                    <input type="number" step="1" min="1" id="form-vehicle-cyl-cap" class="form-control" placeholder="40">
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">Cantidad máxima de cilindros que puede cargar la camioneta.</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Estado de la Unidad:</label>
+                    <select id="form-vehicle-status" class="form-control">
+                        <option value="active">🟢 Activa (Operativa)</option>
+                        <option value="maintenance">🟡 En Mantenimiento</option>
+                        <option value="inactive">🔴 Inactiva</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notas u Observaciones (Opcional):</label>
+                    <input type="text" id="form-vehicle-notes" class="form-control" placeholder="Zona Centro, tanque nuevo...">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Guardar Unidad</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 3: Reasignar Chofer a Pedido
+         ==================================================================== -->
+    <div class="modal-backdrop" id="modal-reassign">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-reassign-title">🛻 Reasignar Chofer</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="event.preventDefault(); submitReassignOrder();">
+                <input type="hidden" id="modal-reassign-order-id">
+                <p id="modal-reassign-info" style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px;"></p>
+                <div class="form-group">
+                    <label class="form-label">Selecciona el nuevo chofer:</label>
+                    <select id="modal-reassign-driver-select" class="form-control" required>
+                        <!-- Injected by JS -->
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">🔄 Reasignar Ahora</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 4: Cambiar Estado de Pedido
+         ==================================================================== -->
+    <div class="modal-backdrop" id="modal-status">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-status-title">⚙️ Cambiar Estado del Pedido</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="event.preventDefault(); submitStatusChange();">
+                <input type="hidden" id="modal-status-order-id">
+                <p id="modal-status-info" style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px;"></p>
+                <div class="form-group">
+                    <label class="form-label">Nuevo Estado:</label>
+                    <select id="modal-status-select" class="form-control" required>
+                        <option value="confirmed">🔵 Confirmado (En espera de chofer)</option>
+                        <option value="assigned">🟣 Asignado a Chofer</option>
+                        <option value="in_route">🟡 En Camino (Repartidor en ruta)</option>
+                        <option value="delivered">🟢 Entregado y Cobrado</option>
+                        <option value="scheduled">🔷 Programado a Futuro</option>
+                        <option value="cancelled">🔴 Cancelado</option>
+                    </select>
+                </div>
+                <div class="form-group" id="modal-status-reason-group" style="display: none;">
+                    <label class="form-label" style="color: var(--accent-rose); font-weight: 600;">Explicación / Motivo de Cancelación para el Cliente:</label>
+                    <textarea id="modal-status-reason" class="form-control" rows="2" placeholder="Ej: No fue posible acceder al domicilio por obras viales / Solicitud del cliente..."></textarea>
+                    <small style="color: var(--text-muted); font-size: 0.75rem;">Se enviará esta explicación automáticamente por Telegram al cliente con una disculpa.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Guardar Estado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 5: Ver Detalle Completo del Pedido
+         ==================================================================== -->
+    <div class="modal-backdrop" id="modal-details">
+        <div class="modal" style="max-width: 620px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-details-title">📋 Detalle de Pedido</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="modal-details-content" style="font-size: 0.9rem; line-height: 1.6; color: var(--text-primary);">
+                <!-- Injected by JS -->
+            </div>
+            <div class="modal-footer" style="margin-top: 20px;">
+                <button type="button" class="btn btn-primary btn-close-modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 6: Auditoría de Asistencia (Entrada/Salida) y Cargas de Tanque
+         ==================================================================== -->
+    <div class="modal-backdrop" id="modal-tank-readings">
+        <div class="modal" style="max-width: 720px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-tank-readings-title">⏱️ Asistencia y Cargas de Tanque</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="modal-tank-readings-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;"></div>
+            
+            <!-- Modal Tabs -->
+            <div style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; padding-bottom: 8px;">
+                <button type="button" id="tab-btn-shifts" class="btn btn-sm btn-primary" onclick="switchDriverAuditTab('shifts')">
+                    ⏰ Horas de Entrada y Salida
+                </button>
+                <button type="button" id="tab-btn-readings" class="btn btn-sm btn-secondary" onclick="switchDriverAuditTab('readings')">
+                    ⛽ Medidor y Cargas de Pipa
+                </button>
+            </div>
+
+            <!-- Content Panel: Shifts / Attendance -->
+            <div id="driver-audit-shifts-panel" style="max-height: 480px; overflow-y: auto;">
+                <!-- Injected by JS -->
+            </div>
+
+            <!-- Content Panel: Tank Readings -->
+            <div id="driver-audit-readings-panel" style="max-height: 480px; overflow-y: auto; display: none;">
+                <!-- Injected by JS -->
+            </div>
+
+            <div class="modal-footer" style="margin-top: 15px;">
+                <button type="button" class="btn btn-secondary btn-close-modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 7: Encuestas y Calificaciones de Chofer (CSAT)
+         ==================================================================== -->
+    <div class="modal-backdrop" id="modal-driver-ratings">
+        <div class="modal" style="max-width: 680px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-driver-ratings-title">⭐ Calificaciones y Encuestas</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="modal-driver-ratings-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;"></div>
+            
+            <div id="driver-ratings-content" style="max-height: 480px; overflow-y: auto;">
+                <!-- Injected by JS -->
+            </div>
+
+            <div class="modal-footer" style="margin-top: 15px;">
+                <button type="button" class="btn btn-secondary btn-close-modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 8: Reprogramar Pedido en Agenda
+         ==================================================================== -->
+    <div class="modal-backdrop" id="modal-reschedule">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-reschedule-title">🗓️ Reprogramar Horario de Entrega</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form onsubmit="event.preventDefault(); submitRescheduleOrder();">
+                <input type="hidden" id="modal-reschedule-order-id">
+                <p id="modal-reschedule-info" style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px;"></p>
+                
+                <div class="form-group">
+                    <label class="form-label">Fecha y Hora de Entrega (Deadline):</label>
+                    <input type="datetime-local" id="modal-reschedule-datetime" class="form-control" required>
+                    <small style="color: var(--text-muted); font-size: 0.75rem;">El pedido llegará a la mesa de despacho activa 30 minutos antes de esta hora.</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Descripción del Horario (opcional / texto para el cliente):</label>
+                    <input type="text" id="modal-reschedule-schedule-text" class="form-control" placeholder="Ej: Hoy a las 5:00 PM / Mañana por la mañana">
+                </div>
+
+                <div class="modal-footer" style="margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">💾 Guardar y Actualizar Agenda</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         Modal 9: Levantar / Crear Nuevo Pedido (Venta Directa)
+         ==================================================================== -->
+    <div class="modal-backdrop" id="modal-create-order">
+        <div class="modal" style="max-width: 760px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                        <span>➕</span> Levantar Nuevo Pedido
+                    </h3>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
+                        Captura de pedidos para venta directa, mostrador o call center.
+                    </p>
+                </div>
+                <button class="modal-close">&times;</button>
+            </div>
+            
+            <form onsubmit="event.preventDefault(); submitCreateOrderForm();" id="form-create-order">
+                
+                <!-- Sección 1: Datos del Cliente -->
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
+                    <h4 style="font-size: 0.9rem; color: var(--accent-cyan); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <span>👤</span> 1. Información del Cliente
+                    </h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Nombre del Cliente *:</label>
+                            <input type="text" id="create-order-customer-name" class="form-control" required placeholder="Ej: Roberto Gómez / Abarrotes Lupita">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Teléfono Celular *:</label>
+                            <input type="tel" id="create-order-customer-phone" class="form-control" required placeholder="Ej: 669 123 4567">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
+                        <label class="form-label">Dirección Completa de Entrega (Calle, Número, Colonia) *:</label>
+                        <input type="text" id="create-order-address" class="form-control" required placeholder="Ej: Av. del Mar 123, Col. Ferrocarrilera, Mazatlán">
+                    </div>
+                    <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
+                        <label class="form-label">Referencias del Domicilio o Notas (Opcional):</label>
+                        <input type="text" id="create-order-notes" class="form-control" placeholder="Ej: Casa blanca dos pisos, reja negra. Llevar cambio de $500.">
+                    </div>
+                </div>
+
+                <!-- Sección 2: Productos y Cantidades -->
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="font-size: 0.9rem; color: var(--accent-cyan); margin: 0; display: flex; align-items: center; gap: 6px;">
+                            <span>📦</span> 2. Productos Solicitados
+                        </h4>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addCreateOrderItemRow()">
+                            ➕ Agregar Producto
+                        </button>
+                    </div>
+
+                    <div id="create-order-items-list" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Injected by JS -->
+                    </div>
+
+                    <!-- Resumen del Total -->
+                    <div style="margin-top: 16px; padding: 12px 16px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-heading);">Monto Total a Cobrar:</span>
+                        <span id="create-order-total-display" style="font-size: 1.4rem; font-weight: 800; color: var(--accent-emerald);">$0.00 MXN</span>
+                    </div>
+                </div>
+
+                <!-- Sección 3: Horario y Método de Pago -->
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
+                    <h4 style="font-size: 0.9rem; color: var(--accent-cyan); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <span>⏰</span> 3. Programación y Cobro
+                    </h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Tipo de Horario de Entrega:</label>
+                            <select id="create-order-schedule-type" class="form-control" onchange="toggleCreateOrderSchedule()">
+                                <option value="now">⚡ Lo antes posible (Inmediato)</option>
+                                <option value="scheduled">🗓️ Programar Fecha y Hora Pactada</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Método de Pago:</label>
+                            <select id="create-order-payment-method" class="form-control">
+                                <option value="Efectivo">💵 Efectivo al entregar</option>
+                                <option value="Tarjeta">💳 Tarjeta (Terminal Bancaria)</option>
+                                <option value="Transferencia">🏦 Transferencia SPEI</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Campo condicional de fecha/hora si se selecciona programado -->
+                    <div id="create-order-scheduled-group" style="display: none; margin-top: 12px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-sm); padding: 12px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">Fecha y Hora Programada (Deadline) *:</label>
+                                <input type="datetime-local" id="create-order-scheduled-for" class="form-control">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">Texto Descriptivo de Horario:</label>
+                                <input type="text" id="create-order-schedule-text" class="form-control" placeholder="Ej: Hoy a las 5:00 PM / Mañana 10:00 AM">
+                            </div>
+                        </div>
+                        <small style="display: block; margin-top: 6px; color: var(--text-muted); font-size: 0.75rem;">
+                            ℹ️ Este pedido entrará a la mesa de despacho activa automáticamente 30 minutos antes de la hora límite.
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Sección 4: Despacho y Chofer -->
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
+                    <h4 style="font-size: 0.9rem; color: var(--accent-cyan); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <span>🛻</span> 4. Modo de Despacho
+                    </h4>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">¿Cómo deseas asignar el pedido?</label>
+                        <select id="create-order-dispatch-mode" class="form-control" onchange="toggleCreateOrderDispatch()">
+                            <option value="auto">🤖 Despacho Automático Inteligente (Asignar a chofer más cercano en turno)</option>
+                            <option value="driver">🛻 Asignar a un Chofer Específico Ahora</option>
+                            <option value="none">📋 Guardar como Pendiente de Asignar (En cola de espera)</option>
+                        </select>
+                    </div>
+
+                    <!-- Selector condicional de chofer -->
+                    <div id="create-order-driver-group" style="display: none; margin-top: 12px;">
+                        <label class="form-label">Selecciona el Chofer / Unidad:</label>
+                        <select id="create-order-driver-select" class="form-control">
+                            <!-- Injected by JS -->
+                        </select>
+                        <small style="display: block; margin-top: 6px; color: var(--text-muted); font-size: 0.75rem;">
+                            Se enviará de inmediato una notificación push por Telegram a su aplicación móvil.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit-create-order">
+                        🚀 Levantar y Crear Pedido
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Script -->
+    <script src="/static/admin/js/admin.js"></script>
+</body>
+</html>

@@ -16,6 +16,7 @@ class Product(BaseModel):
     category: str = ""
     image_url: str = ""
     tags: list[str] = Field(default_factory=list)
+    in_stock: bool = True
     is_promoted: bool = False
     promotion_text: str = ""
 

@@ -18,6 +18,7 @@ import uuid
 from langchain_core.messages import HumanMessage
 
 from src.config.tenant_config import get_tenant, list_tenants
+from src.database import init_db
 from src.graphs.sales_graph import compile_sales_graph
 
 
@@ -58,6 +59,8 @@ async def chat_loop() -> None:
         "configurable": {
             "thread_id": thread_id,
             "tenant_id": tenant_id,
+            "channel": "cli",
+            "channel_user_id": "cli_user",
         }
     }
 
@@ -91,6 +94,8 @@ async def chat_loop() -> None:
                 "configurable": {
                     "thread_id": thread_id,
                     "tenant_id": tenant_id,
+                    "channel": "cli",
+                    "channel_user_id": "cli_user",
                 }
             }
             graph = compile_sales_graph()
@@ -126,6 +131,7 @@ async def chat_loop() -> None:
 def main() -> None:
     """Entry point."""
     print("🤖 Enterprise Sales Agent — Multi-Tenant CLI")
+    init_db()
     asyncio.run(chat_loop())
 
 

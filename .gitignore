@@ -69,6 +69,15 @@ htmlcov/
 *.tmp
 *.bak
 *.swp
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+data/
+cloudflared.exe
+uploads/
+backups/
+scratch/
 
 # Eval / test reports
 eval_report.html
@@ -77,3 +86,5 @@ eval_sales_test.py
 # Internal agent workflow files (Antigravity)
 .agent/
 .claude/
+.gemini/
+
